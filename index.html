@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>NPS Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0f0f11;
+    --bg2: #18181c;
+    --bg3: #222228;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f2;
+    --muted: #7a7a85;
+    --green: #3ecf8e;
+    --green-bg: rgba(62,207,142,0.12);
+    --amber: #f59e0b;
+    --amber-bg: rgba(245,158,11,0.12);
+    --red: #f87171;
+    --red-bg: rgba(248,113,113,0.12);
+    --blue: #60a5fa;
+    --blue-bg: rgba(96,165,250,0.12);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  body { padding: 0 0 env(safe-area-inset-bottom) 0; }
+
+  .app { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-top: env(safe-area-inset-top); }
+  .logo { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+  .live-dot { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--green); font-family: 'DM Mono', monospace; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 20px; background: var(--bg2); border-radius: var(--radius-sm); padding: 4px; }
+  .tab { flex: 1; text-align: center; padding: 9px 6px; font-size: 13px; font-weight: 500; border-radius: 8px; cursor: pointer; color: var(--muted); transition: all 0.2s; border: none; background: none; }
+  .tab.active { background: var(--bg3); color: var(--text); }
+
+  .nps-hero { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 20px; margin-bottom: 12px; text-align: center; }
+  .nps-number { font-size: 72px; font-weight: 600; line-height: 1; letter-spacing: -2px; font-family: 'DM Mono', monospace; }
+  .nps-label { font-size: 12px; color: var(--muted); margin-top: 6px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .nps-zone { display: inline-block; margin-top: 12px; font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 99px; }
+
+  .dist-bar { display: flex; height: 6px; border-radius: 99px; overflow: hidden; margin: 16px 0 8px; }
+  .dist-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+
+  .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .metric { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 10px; text-align: center; }
+  .metric-val { font-size: 22px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .metric-lbl { font-size: 10px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .section-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 20px 0 10px; }
+
+  .chart-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .chart-container { position: relative; width: 100%; height: 160px; }
+
+  .comment-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px; }
+  .comment-card.neg { border-left: 3px solid var(--red); }
+  .comment-card.neu { border-left: 3px solid var(--amber); }
+  .comment-text { font-size: 13px; line-height: 1.55; color: var(--text); margin-bottom: 6px; }
+  .comment-meta { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .pill { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 99px; font-family: 'DM Mono', monospace; }
+  .pill-det { background: var(--red-bg); color: var(--red); }
+  .pill-neu { background: var(--amber-bg); color: var(--amber); }
+  .pill-pro { background: var(--green-bg); color: var(--green); }
+
+  .col-head { font-size: 12px; font-weight: 500; margin-bottom: 8px; }
+  .col-head.neg { color: var(--red); }
+  .col-head.neu { color: var(--amber); }
+
+  .ai-box { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; }
+  .ai-box-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--text); }
+  .action-item { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .action-arrow { color: var(--green); font-weight: 600; flex-shrink: 0; margin-top: 1px; }
+  .action-arrow.amber { color: var(--amber); }
+
+  .btn { width: 100%; padding: 14px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; border: none; margin-bottom: 10px; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s; }
+  .btn:active { opacity: 0.75; }
+  .btn-primary { background: var(--green); color: #0a1f15; }
+  .btn-secondary { background: var(--bg3); color: var(--text); }
+  .btn-report { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(96,165,250,0.25); }
+
+  .loading { text-align: center; padding: 16px; font-size: 13px; color: var(--muted); }
+  .report-out { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; font-size: 13px; color: var(--muted); line-height: 1.7; white-space: pre-wrap; margin-top: 8px; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* Config screen */
+  .config-screen { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; }
+  .config-title { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .config-sub { font-size: 14px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+  .input-group { margin-bottom: 14px; }
+  .input-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.05em; }
+  input[type=text], input[type=url] { width: 100%; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 14px; color: var(--text); font-family: 'DM Mono', monospace; outline: none; }
+  input:focus { border-color: var(--green); }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+  /* QR panel */
+  .qr-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 12px; text-align: center; }
+  .qr-title { font-size: 13px; font-weight: 500; margin-bottom: 14px; color: var(--muted); }
+  #qrCanvas { border-radius: 8px; }
+  .qr-url { font-size: 11px; color: var(--muted); margin-top: 10px; font-family: 'DM Mono', monospace; word-break: break-all; }
+
+  .refresh-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .refresh-time { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .refresh-btn { font-size: 12px; color: var(--green); background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+  .empty { text-align: center; padding: 32px 16px; font-size: 13px; color: var(--muted); }
+
+  /* Settings gear */
+  .gear-btn { background: var(--bg2); border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- CONFIG SCREEN -->
+  <div id="configScreen" class="config-screen">
+    <div class="logo" style="margin-bottom:32px">NPS Dashboard</div>
+    <div class="config-title">Configuração inicial</div>
+    <div class="config-sub">Cole o link público do seu Excel no OneDrive para sincronizar em tempo real.</div>
+
+    <div class="input-group">
+      <label class="input-label">Link público do OneDrive (Excel)</label>
+      <input type="url" id="oneDriveUrl" placeholder="https://1drv.ms/x/..." />
+      <div class="hint">No OneDrive: clique no arquivo → Compartilhar → Qualquer pessoa com o link → Copiar link</div>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Nome do estabelecimento</label>
+      <input type="text" id="bizName" placeholder="Ex: Festa & Cia Buffet" />
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">URL deste dashboard (para o QR Code)</label>
+      <input type="url" id="dashUrl" placeholder="https://seuusuario.github.io/nps" />
+      <div class="hint">Após hospedar no GitHub Pages, cole o link aqui para gerar o QR Code.</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="saveConfig()">Acessar dashboard</button>
+    <button class="btn btn-secondary" onclick="loadDemo()">Ver com dados de exemplo</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashScreen" style="display:none">
+    <div class="header">
+      <div class="logo" id="bizNameDisplay">NPS</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="live-dot" id="liveIndicator"><div class="dot"></div><span>ao vivo</span></div>
+        <div class="gear-btn" onclick="showConfig()">&#9881;</div>
+      </div>
+    </div>
+
+    <div class="refresh-row">
+      <div class="refresh-time" id="lastUpdate">—</div>
+      <button class="refresh-btn" onclick="loadData()">&#8635; Atualizar</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="setTab('mes',this)">Este mês</button>
+      <button class="tab" onclick="setTab('semana',this)">Última semana</button>
+    </div>
+
+    <!-- NPS hero -->
+    <div class="nps-hero">
+      <div class="nps-number" id="npsNum" style="color:var(--green)">—</div>
+      <div class="nps-label">Net Promoter Score</div>
+      <div class="nps-zone" id="npsZone"></div>
+      <div class="dist-bar" id="distBar" style="margin-top:16px"></div>
+      <div class="dist-labels">
+        <span style="color:var(--red)">Detratores</span>
+        <span style="color:var(--amber)">Neutros</span>
+        <span style="color:var(--green)">Promotores</span>
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-val" id="mTotal">—</div>
+        <div class="metric-lbl">Respostas</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="mPro" style="color:var(--green)">—</div>
+        <div class="metric-lbl">Promotores</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="mDet" style="color:var(--red)">—</div>
+        <div class="metric-lbl">Detratores</div>
+      </div>
+    </div>
+
+    <!-- Bar chart -->
+    <div class="section-title">Médias por categoria</div>
+    <div class="chart-wrap">
+      <div class="chart-container">
+        <canvas id="barChart" role="img" aria-label="Médias por categoria"></canvas>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Comments -->
+    <div class="section-title" style="color:var(--red)">Detratores — comentários</div>
+    <div id="detComments"></div>
+
+    <div class="section-title" style="color:var(--amber);margin-top:16px">Neutros — comentários</div>
+    <div id="neuComments"></div>
+
+    <div class="divider"></div>
+
+    <!-- AI Analysis -->
+    <div class="section-title">Análise inteligente</div>
+    <div id="aiNeg" style="display:none" class="ai-box">
+      <div class="ai-box-title" style="color:var(--red)">O que melhorar (detratores)</div>
+      <div id="aiNegBody"></div>
+    </div>
+    <div id="aiNeu" style="display:none" class="ai-box">
+      <div class="ai-box-title" style="color:var(--amber)">Como converter neutros em promotores</div>
+      <div id="aiNeuBody"></div>
+    </div>
+    <button class="btn btn-secondary" id="btnAnalyze" onclick="runAnalysis()">Analisar com IA &#10230;</button>
+    <div id="aiLoading" style="display:none" class="loading">Analisando comentários...</div>
+
+    <!-- Weekly report -->
+    <div class="section-title" style="margin-top:4px">Relatório semanal</div>
+    <button class="btn btn-report" id="btnReport" onclick="runReport()">Gerar relatório &#10230;</button>
+    <div id="reportLoading" style="display:none" class="loading">Gerando relatório...</div>
+    <div id="reportOut" style="display:none"></div>
+
+    <div class="divider"></div>
+
+    <!-- QR Code -->
+    <div class="section-title">QR Code para funcionários</div>
+    <div class="qr-panel">
+      <div class="qr-title">Fixe este QR Code no local de trabalho</div>
+      <canvas id="qrCanvas"></canvas>
+      <div class="qr-url" id="qrUrlText"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+let allData=[], currentTab='mes', barChartInst=null, config={};
+
+/* ── DEMO DATA ─────────────────────────────── */
+const DEMO=[
+  {data:new Date('2025-04-01'),nps:9,atend:5,comida:5,limpeza:4,estrutura:5,comentario:'Festa incrível! As crianças adoraram as atrações.'},
+  {data:new Date('2025-04-03'),nps:8,atend:4,comida:4,limpeza:4,estrutura:4,comentario:'Muito bom, mas o espaço poderia ser maior.'},
+  {data:new Date('2025-04-05'),nps:2,atend:2,comida:3,limpeza:2,estrutura:2,comentario:'Demora no atendimento e brinquedos quebrados.'},
+  {data:new Date('2025-04-07'),nps:10,atend:5,comida:5,limpeza:5,estrutura:5,comentario:'Perfeito! Equipe atenciosa e comida deliciosa.'},
+  {data:new Date('2025-04-09'),nps:3,atend:2,comida:2,limpeza:3,estrutura:3,comentario:'Salão quente, sem ventilação e cardápio fraco.'},
+  {data:new Date('2025-04-11'),nps:9,atend:5,comida:4,limpeza:5,estrutura:4,comentario:'Ótima experiência, filha amou a festa!'},
+  {data:new Date('2025-04-13'),nps:7,atend:3,comida:4,limpeza:4,estrutura:3,comentario:'Razoável, achei o preço alto para o que oferece.'},
+  {data:new Date('2025-04-15'),nps:10,atend:5,comida:5,limpeza:5,estrutura:5,comentario:'Melhor buffet infantil que já fui!'},
+  {data:new Date('2025-04-17'),nps:1,atend:1,comida:2,limpeza:1,estrutura:2,comentario:'Banheiro sujo e equipe sem treinamento.'},
+  {data:new Date('2025-04-19'),nps:9,atend:4,comida:5,limpeza:4,estrutura:5,comentario:'Comida ótima e decoração linda!'},
+  {data:new Date('2025-04-20'),nps:8,atend:4,comida:4,limpeza:5,estrutura:4,comentario:'Bom, mas o estacionamento é pequeno demais.'},
+  {data:new Date('2025-04-21'),nps:5,atend:3,comida:3,limpeza:3,estrutura:3,comentario:'Esperava mais variedade de brinquedos.'},
+  {data:new Date('2025-04-22'),nps:10,atend:5,comida:5,limpeza:5,estrutura:5,comentario:'Excelente! Voltaremos com certeza.'},
+  {data:new Date('2025-04-23'),nps:7,atend:4,comida:3,limpeza:4,estrutura:4,comentario:'Gostei, mas faltam opções saudáveis no cardápio.'},
+];
+
+/* ── CONFIG ─────────────────────────────────── */
+function saveConfig(){
+  const url=document.getElementById('oneDriveUrl').value.trim();
+  const name=document.getElementById('bizName').value.trim()||'NPS Dashboard';
+  const dashUrl=document.getElementById('dashUrl').value.trim();
+  config={url,name,dashUrl};
+  localStorage.setItem('nps_config',JSON.stringify(config));
+  startDash();
+}
+
+function showConfig(){
+  document.getElementById('configScreen').style.display='flex';
+  document.getElementById('configScreen').style.flexDirection='column';
+  document.getElementById('dashScreen').style.display='none';
+}
+
+function loadDemo(){
+  config={name:'Festa & Cia Buffet',url:'',dashUrl:window.location.href};
+  allData=DEMO;
+  startDash(true);
+}
+
+function startDash(demo=false){
+  document.getElementById('configScreen').style.display='none';
+  document.getElementById('dashScreen').style.display='block';
+  document.getElementById('bizNameDisplay').textContent=config.name||'NPS';
+  if(!demo) loadData();
+  else { renderAll(); updateQR(); updateTime(); }
+  if(!demo) setInterval(loadData,60000);
+}
+
+/* ── ONEDRIVE FETCH ─────────────────────────── */
+async function loadData(){
+  if(!config.url){return;}
+  document.getElementById('liveIndicator').innerHTML='<div class="dot" style="background:var(--amber)"></div><span style="color:var(--amber)">buscando</span>';
+  try{
+    // Convert OneDrive share link to download URL
+    let dlUrl=config.url;
+    if(dlUrl.includes('1drv.ms')||dlUrl.includes('onedrive.live')||dlUrl.includes('sharepoint.com')){
+      // Try to get direct download via embed trick
+      dlUrl=dlUrl.replace('redir?','download?').replace('/e/','/download/');
+      if(dlUrl.includes('1drv.ms')){
+        const b64=btoa(dlUrl).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+        dlUrl=`https://api.onedrive.com/v1.0/shares/u!${b64}/root/content`;
+      }
+    }
+    const resp=await fetch(dlUrl);
+    const buf=await resp.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{raw:false,defval:''});
+    allData=parseRows(rows);
+    document.getElementById('liveIndicator').innerHTML='<div class="dot"></div><span style="color:var(--green)">ao vivo</span>';
+  }catch(e){
+    document.getElementById('liveIndicator').innerHTML='<div class="dot" style="background:var(--red)"></div><span style="color:var(--red)">erro</span>';
+  }
+  renderAll();
+  updateTime();
+  updateQR();
+}
+
+function updateTime(){
+  const now=new Date();
+  document.getElementById('lastUpdate').textContent='Atualizado '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ── PARSE ───────────────────────────────────── */
+function parseRows(rows){
+  return rows.map(r=>{
+    let data=new Date(r['Hora de conclusão']||r['Hora de início']||'');
+    if(isNaN(data)) data=new Date();
+    const nps=parseInt(r['Qual é a probabilidade de você nos recomendar a um amigo ou familiar?'])||0;
+    return{data,nps,
+      atend:parseFloat(r['Quantas estrelas você dá ao atendimento da equipe?'])||0,
+      comida:parseFloat(r['Quanto você gostou da nossa comida ?'])||0,
+      limpeza:parseFloat(r['Quão feliz você ficou com Limpeza e Organização do salão?'])||0,
+      estrutura:parseFloat(r['Em relação a nossa estrutura o quanto ela te atendeu?'])||0,
+      comentario:r['Deixe seu comentário para nós']||''
+    };
+  }).filter(r=>r.nps>=0&&r.nps<=10);
+}
+
+/* ── TAB ─────────────────────────────────────── */
+function setTab(tab,el){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('aiNeg').style.display='none';
+  document.getElementById('aiNeu').style.display='none';
+  document.getElementById('reportOut').style.display='none';
+  renderAll();
+}
+
+function filterData(){
+  const now=new Date();
+  if(currentTab==='mes') return allData.filter(r=>r.data.getMonth()===now.getMonth()&&r.data.getFullYear()===now.getFullYear());
+  const s=new Date(now); s.setDate(now.getDate()-7); s.setHours(0,0,0,0);
+  return allData.filter(r=>r.data>=s);
+}
+
+function avg(d,k){ return d.length?d.reduce((s,r)=>s+r[k],0)/d.length:0; }
+
+/* ── RENDER ──────────────────────────────────── */
+function renderAll(){
+  const d=filterData(), n=d.length;
+  const pro=d.filter(r=>r.nps>=9).length;
+  const det=d.filter(r=>r.nps<=6).length;
+  const neu=n-pro-det;
+  const nps=n?Math.round(((pro-det)/n)*100):null;
+
+  const color=nps===null?'var(--muted)':nps>=75?'var(--green)':nps>=50?'var(--blue)':nps>=0?'var(--amber)':'var(--red)';
+  document.getElementById('npsNum').textContent=nps!==null?nps:'—';
+  document.getElementById('npsNum').style.color=color;
+
+  const zones=['Zona crítica','Zona de aperfeiçoamento','Zona de qualidade','Zona de excelência'];
+  const zoneColors=['var(--red-bg)','var(--amber-bg)','var(--blue-bg)','var(--green-bg)'];
+  const zoneTextColors=['var(--red)','var(--amber)','var(--blue)','var(--green)'];
+  const zi=nps===null?-1:nps<0?0:nps<50?1:nps<75?2:3;
+  if(zi>=0){
+    const z=document.getElementById('npsZone');
+    z.textContent=zones[zi]; z.style.background=zoneColors[zi]; z.style.color=zoneTextColors[zi];
+  }
+
+  const pP=n?Math.round(pro/n*100):0, pD=n?Math.round(det/n*100):0, pN=n?Math.round(neu/n*100):0;
+  document.getElementById('distBar').innerHTML=`<div style="width:${pD}%;background:var(--red)"></div><div style="width:${pN}%;background:var(--amber)"></div><div style="width:${pP}%;background:var(--green)"></div>`;
+  document.getElementById('mTotal').textContent=n;
+  document.getElementById('mPro').textContent=pP+'%';
+  document.getElementById('mDet').textContent=pD+'%';
+
+  renderBar(d);
+  renderComments(d);
+}
+
+function renderBar(d){
+  const ctx=document.getElementById('barChart').getContext('2d');
+  if(barChartInst) barChartInst.destroy();
+  barChartInst=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:['Atendimento','Comida','Limpeza','Estrutura'],
+      datasets:[{
+        label:'Média',
+        data:[avg(d,'atend'),avg(d,'comida'),avg(d,'limpeza'),avg(d,'estrutura')].map(v=>parseFloat(v.toFixed(1))),
+        backgroundColor:['rgba(96,165,250,0.25)','rgba(62,207,142,0.25)','rgba(245,158,11,0.25)','rgba(248,113,113,0.25)'],
+        borderColor:['#60a5fa','#3ecf8e','#f59e0b','#f87171'],
+        borderWidth:1.5, borderRadius:6
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{min:0,max:5,ticks:{stepSize:1,color:'#7a7a85',font:{size:11}},grid:{color:'rgba(255,255,255,0.05)'}},
+        x:{ticks:{color:'#7a7a85',font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+}
+
+function makeCard(r,type){
+  const cls=type;
+  const pillCls=r.nps<=6?'pill-det':'pill-neu';
+  const q=r.comentario.replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  return`<div class="comment-card ${cls}"><div class="comment-text">"${q}"</div><div class="comment-meta"><span class="pill ${pillCls}">Nota ${r.nps}</span>${r.data.toLocaleDateString('pt-BR')}</div></div>`;
+}
+
+function renderComments(d){
+  const wc=d.filter(r=>r.comentario&&r.comentario.trim().length>5);
+  const dets=wc.filter(r=>r.nps<=6).sort((a,b)=>a.nps-b.nps).slice(0,3);
+  const neus=wc.filter(r=>r.nps===7||r.nps===8).slice(0,3);
+  document.getElementById('detComments').innerHTML=dets.length?dets.map(r=>makeCard(r,'neg')).join(''):'<div class="empty">Sem comentários neste período</div>';
+  document.getElementById('neuComments').innerHTML=neus.length?neus.map(r=>makeCard(r,'neu')).join(''):'<div class="empty">Sem comentários neste período</div>';
+}
+
+/* ── QR CODE ─────────────────────────────────── */
+function updateQR(){
+  const url=config.dashUrl||window.location.href;
+  document.getElementById('qrUrlText').textContent=url;
+  const canvas=document.getElementById('qrCanvas');
+  const size=Math.min(180,window.innerWidth-80);
+  canvas.width=size; canvas.height=size;
+  try{
+    QRCode.toCanvas(canvas,url,{width:size,margin:2,color:{dark:'#f0f0f2',light:'#18181c'}});
+  }catch(e){}
+}
+
+/* ── AI ──────────────────────────────────────── */
+async function callClaude(prompt){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+  });
+  const data=await r.json();
+  return data.content.map(b=>b.text||'').join('');
+}
+
+function parseActions(text,colorClass){
+  const lines=text.split('\n').filter(l=>l.trim().startsWith('→')||l.trim().startsWith('->'));
+  if(!lines.length) return`<div class="action-item"><div class="action-arrow ${colorClass}">→</div><div style="color:var(--muted)">${text}</div></div>`;
+  return lines.map(l=>`<div class="action-item"><div class="action-arrow ${colorClass}">→</div><div style="color:var(--muted)">${l.replace(/^→\s*|^->\s*/,'')}</div></div>`).join('');
+}
+
+async function runAnalysis(){
+  const d=filterData();
+  const dets=d.filter(r=>r.nps<=6&&r.comentario&&r.comentario.trim().length>5);
+  const neus=d.filter(r=>(r.nps===7||r.nps===8)&&r.comentario&&r.comentario.trim().length>5);
+  if(!dets.length&&!neus.length){alert('Sem comentários suficientes.');return;}
+  document.getElementById('btnAnalyze').style.display='none';
+  document.getElementById('aiLoading').style.display='block';
+  const periodo=currentTab==='mes'?'este mês':'última semana';
+  try{
+    const[negRes,neuRes]=await Promise.all([
+      dets.length?callClaude(`Você é consultor de experiência do cliente de um buffet infantil. Analise os comentários de clientes insatisfeitos (notas 0-6) de ${periodo}:\n${dets.map(r=>`- Nota ${r.nps}: "${r.comentario}"`).join('\n')}\n\nListe de 3 a 5 ações práticas e específicas para um buffet infantil melhorar. Cada ação em uma linha começando com "→".`):Promise.resolve(''),
+      neus.length?callClaude(`Você é consultor de experiência do cliente de um buffet infantil. Analise os comentários de clientes neutros (notas 7-8) de ${periodo}:\n${neus.map(r=>`- Nota ${r.nps}: "${r.comentario}"`).join('\n')}\n\nSugira de 3 a 5 ações para transformar esses clientes em promotores (9-10). Pense em detalhes que encantam famílias com crianças. Cada ação em uma linha começando com "→".`):Promise.resolve('')
+    ]);
+    if(negRes){document.getElementById('aiNegBody').innerHTML=parseActions(negRes,'');document.getElementById('aiNeg').style.display='block';}
+    if(neuRes){document.getElementById('aiNeuBody').innerHTML=parseActions(neuRes,'amber');document.getElementById('aiNeu').style.display='block';}
+  }catch(e){alert('Erro na análise. Tente novamente.');}
+  document.getElementById('aiLoading').style.display='none';
+  document.getElementById('btnAnalyze').style.display='block';
+}
+
+async function runReport(){
+  const d=filterData(); if(!d.length){alert('Sem dados.');return;}
+  document.getElementById('btnReport').style.display='none';
+  document.getElementById('reportLoading').style.display='block';
+  const n=d.length,pro=d.filter(r=>r.nps>=9).length,det=d.filter(r=>r.nps<=6).length,neu=n-pro-det;
+  const nps=Math.round(((pro-det)/n)*100);
+  const comments=d.filter(r=>r.comentario&&r.comentario.length>5).slice(0,8).map(r=>`- Nota ${r.nps}: "${r.comentario}"`).join('\n');
+  const periodo=currentTab==='mes'?'este mês':'última semana';
+  try{
+    const res=await callClaude(`Você é analista de experiência do cliente de um buffet infantil. Gere um relatório executivo.\n\nPeríodo: ${periodo}\nNPS: ${nps}\nRespostas: ${n}\nPromotores: ${pro} (${Math.round(pro/n*100)}%)\nNeutros: ${neu} (${Math.round(neu/n*100)}%)\nDetratores: ${det} (${Math.round(det/n*100)}%)\n\nComentários:\n${comments}\n\nEstruture:\n1. Resumo executivo\n2. Pontos fortes\n3. Pontos de atenção\n4. Recomendações prioritárias\n5. Meta para próxima semana\n\nTom profissional e acessível. Contexto: buffet infantil.`);
+    document.getElementById('reportOut').innerHTML='<div class="report-out">'+res+'</div>';
+    document.getElementById('reportOut').style.display='block';
+  }catch(e){alert('Erro ao gerar relatório.');}
+  document.getElementById('reportLoading').style.display='none';
+  document.getElementById('btnReport').style.display='block';
+}
+
+/* ── INIT ────────────────────────────────────── */
+(function init(){
+  const saved=localStorage.getItem('nps_config');
+  if(saved){
+    try{ config=JSON.parse(saved); }catch(e){}
+    if(config.url){
+      document.getElementById('oneDriveUrl').value=config.url||'';
+      document.getElementById('bizName').value=config.name||'';
+      document.getElementById('dashUrl').value=config.dashUrl||'';
+      startDash();
+    }
+  }
+})();
+</script>
+</body>
+</html>
