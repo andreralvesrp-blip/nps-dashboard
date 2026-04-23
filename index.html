@@ -35,21 +35,21 @@ body{padding:0 0 env(safe-area-inset-bottom) 0}
 .chart-container{position:relative;width:100%;height:160px}
 .comment-card{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:12px 14px;margin-bottom:8px}
 .comment-text{font-size:13px;line-height:1.55;color:var(--text);margin-bottom:5px}
-.comment-meta{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.comment-meta{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;font-family:'DM Mono',monospace}
 .pill-det{background:var(--red-bg);color:var(--red)}
 .pill-neu{background:var(--amber-bg);color:var(--amber)}
 .pill-pro{background:var(--green-bg);color:var(--green)}
+.pill-week{background:var(--blue-bg);color:var(--blue);font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;font-family:'DM Mono',monospace}
 .divider{border:none;border-top:1px solid var(--border);margin:20px 0}
 .loading-ai{text-align:center;padding:16px;font-size:13px;color:var(--muted)}
-.qr-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
-.qr-title{font-size:13px;font-weight:500;margin-bottom:14px;color:var(--muted)}
-.qr-url{font-size:11px;color:var(--muted);margin-top:10px;font-family:'DM Mono',monospace;word-break:break-all}
+.empty{text-align:center;padding:24px 16px;font-size:13px;color:var(--muted)}
+.ai-tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px;background:var(--blue-bg);color:var(--blue);margin-left:6px;vertical-align:middle}
+.week-label{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:12px}
+.saved-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--green-bg);color:var(--green);margin-left:6px;vertical-align:middle}
 .refresh-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .refresh-time{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
 .refresh-btn{font-size:12px;color:var(--green);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
-.empty{text-align:center;padding:24px 16px;font-size:13px;color:var(--muted)}
-.ai-tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px;background:var(--red-bg);color:var(--red);margin-left:6px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -66,9 +66,15 @@ body{padding:0 0 env(safe-area-inset-bottom) 0}
     <button class="refresh-btn" onclick="loadData()">&#8635; Atualizar</button>
   </div>
 
+  <div class="tabs">
+    <button class="tab active" id="tabMes" onclick="setTab('mes',this)">Este mês</button>
+    <button class="tab" id="tabSemana" onclick="setTab('semana',this)">Última semana</button>
+  </div>
+
+  <!-- NPS hero (sempre do mês) -->
   <div class="nps-hero">
     <div class="nps-number" id="npsNum" style="color:var(--green)">—</div>
-    <div class="nps-label">Net Promoter Score</div>
+    <div class="nps-label">Net Promoter Score — <span id="npsperiodo">este mês</span></div>
     <div class="nps-zone" id="npsZone"></div>
     <div class="dist-bar" id="distBar" style="margin-top:16px"></div>
     <div class="dist-labels">
@@ -89,24 +95,27 @@ body{padding:0 0 env(safe-area-inset-bottom) 0}
 
   <div class="divider"></div>
 
-  <div class="section-title">Comentários negativos — última semana <span class="ai-tag">IA</span></div>
-  <div id="commentsWeek"></div>
-  <div id="aiLoadingWeek" style="display:none" class="loading-ai">Analisando com IA...</div>
+  <!-- ABA SEMANA -->
+  <div id="panelSemana" style="display:none">
+    <div class="section-title">Comentários negativos — última semana <span class="ai-tag">IA</span></div>
+    <div class="week-label" id="weekRangeLabel"></div>
+    <div id="commentsWeek"></div>
+    <div id="aiLoadingWeek" style="display:none" class="loading-ai">Analisando com IA...</div>
+  </div>
 
-  <div class="divider"></div>
+  <!-- ABA MÊS -->
+  <div id="panelMes">
+    <div class="section-title">Comentários negativos — histórico do mês</div>
+    <div id="commentsMes"></div>
+    <div id="aiLoadingMes" style="display:none" class="loading-ai">Carregando histórico...</div>
+  </div>
 
-  <div class="section-title">Comentários negativos — este mês</div>
-  <div id="commentsMes"></div>
-  <div id="aiLoadingMes" style="display:none" class="loading-ai">Analisando com IA...</div>
-
-
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const APPS_URL='https://script.google.com/macros/s/AKfycbxoohk6VTw9AJXHAhK6vqbyQLqjafqqPN5pxVMXP2eA41z5WbUXTwy5IFG77S8uYGwv/exec';
-const FORM_URL='https://andreralvesrp-blip.github.io/nps-dashboard/nps-form.html';
-const APPS_URL='https://script.google.com/macros/s/AKfycbxoohk6VTw9AJXHAhK6vqbyQLqjafqqPN5pxVMXP2eA41z5WbUXTwy5IFG77S8uYGwv/exec';
-let allData=[], barChartInst=null;
+let allData=[], currentTab='mes', barChartInst=null, weekAnalysisDone=false;
 
 async function loadData(){
   document.getElementById('liveIndicator').innerHTML='<div class="dot" style="background:var(--amber)"></div><span style="color:var(--amber)">buscando</span>';
@@ -124,16 +133,17 @@ async function loadData(){
 
 function parseDate(str){
   if(!str) return new Date();
-  const m=String(str).match(/^(\d{2})\/(\d{2})\/(\d{4})(.*)/);
-  if(m) return new Date(`${m[3]}-${m[2]}-${m[1]}${m[4]||''}`);
-  const d=new Date(str);
+  var s=String(str).trim();
+  var m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if(m) return new Date(m[3]+'-'+m[2]+'-'+m[1]);
+  var d=new Date(s);
   return isNaN(d)?new Date():d;
 }
 
 function parseRows(rows){
   return rows.map(r=>{
-    let data=parseDate(r['Data']);
-    const nps=parseInt(r['NPS'])||0;
+    var data=parseDate(r['Data']);
+    var nps=parseInt(r['NPS'])||0;
     return{data,nps,
       atend:parseFloat(r['Atendimento'])||0,
       comida:parseFloat(r['Comida'])||0,
@@ -146,117 +156,205 @@ function parseRows(rows){
 }
 
 function getWeekRange(){
-  const now=new Date();
-  const dow=now.getDay();
-  const dim=dow===0?6:dow-1;
-  const mon=new Date(now); mon.setDate(now.getDate()-dim-7); mon.setHours(0,0,0,0);
-  const sun=new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
+  var now=new Date();
+  var dow=now.getDay();
+  var dim=dow===0?6:dow-1;
+  var mon=new Date(now); mon.setDate(now.getDate()-dim-7); mon.setHours(0,0,0,0);
+  var sun=new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
   return{mon,sun};
 }
 
 function getMesRange(){
-  const now=new Date();
-  const start=new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);
-  const end=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
+  var now=new Date();
+  var start=new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);
+  var end=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
   return{start,end};
 }
 
-function filterWeek(){ const{mon,sun}=getWeekRange(); return allData.filter(r=>r.data>=mon&&r.data<=sun); }
-function filterMes(){ const{start,end}=getMesRange(); return allData.filter(r=>r.data>=start&&r.data<=end); }
-
+function filterWeek(){ var{mon,sun}=getWeekRange(); return allData.filter(r=>r.data>=mon&&r.data<=sun); }
+function filterMes(){ var{start,end}=getMesRange(); return allData.filter(r=>r.data>=start&&r.data<=end); }
 function avg(d,k){ return d.length?d.reduce((s,r)=>s+r[k],0)/d.length:0; }
+function fmt(d){ return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }
+
+function setTab(tab, el){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panelMes').style.display=tab==='mes'?'block':'none';
+  document.getElementById('panelSemana').style.display=tab==='semana'?'block':'none';
+  renderNPS();
+  if(tab==='semana' && !weekAnalysisDone) runWeekAnalysis();
+  if(tab==='mes') loadHistorico();
+}
 
 function renderAll(){
-  const dMes=filterMes();
-  const n=dMes.length;
-  const pro=dMes.filter(r=>r.nps>=9).length;
-  const det=dMes.filter(r=>r.nps<=6).length;
-  const neu=n-pro-det;
-  const nps=n?Math.round(((pro-det)/n)*100):null;
+  renderNPS();
+  if(currentTab==='semana'){
+    weekAnalysisDone=false;
+    runWeekAnalysis();
+  } else {
+    loadHistorico();
+  }
+}
 
-  const color=nps===null?'var(--muted)':nps>=75?'var(--green)':nps>=50?'var(--blue)':nps>=0?'var(--amber)':'var(--red)';
+function renderNPS(){
+  var d=currentTab==='mes'?filterMes():filterWeek();
+  var n=d.length;
+  var pro=d.filter(r=>r.nps>=9).length;
+  var det=d.filter(r=>r.nps<=6).length;
+  var neu=n-pro-det;
+  var nps=n?Math.round(((pro-det)/n)*100):null;
+
+  document.getElementById('npsperiodo').textContent=currentTab==='mes'?'este mês':'última semana';
+  var color=nps===null?'var(--muted)':nps>=75?'var(--green)':nps>=50?'var(--blue)':nps>=0?'var(--amber)':'var(--red)';
   document.getElementById('npsNum').textContent=nps!==null?nps:'—';
   document.getElementById('npsNum').style.color=color;
-  const zones=['Zona crítica','Zona de aperfeiçoamento','Zona de qualidade','Zona de excelência'];
-  const zoneColors=['var(--red-bg)','var(--amber-bg)','var(--blue-bg)','var(--green-bg)'];
-  const zoneText=['var(--red)','var(--amber)','var(--blue)','var(--green)'];
-  const zi=nps===null?-1:nps<0?0:nps<50?1:nps<75?2:3;
-  if(zi>=0){const z=document.getElementById('npsZone');z.textContent=zones[zi];z.style.background=zoneColors[zi];z.style.color=zoneText[zi];}
 
-  const pP=n?Math.round(pro/n*100):0,pD=n?Math.round(det/n*100):0,pN=n?Math.round(neu/n*100):0;
-  document.getElementById('distBar').innerHTML=`<div style="width:${pD}%;background:var(--red)"></div><div style="width:${pN}%;background:var(--amber)"></div><div style="width:${pP}%;background:var(--green)"></div>`;
+  var zones=['Zona crítica','Zona de aperfeiçoamento','Zona de qualidade','Zona de excelência'];
+  var zoneColors=['var(--red-bg)','var(--amber-bg)','var(--blue-bg)','var(--green-bg)'];
+  var zoneText=['var(--red)','var(--amber)','var(--blue)','var(--green)'];
+  var zi=nps===null?-1:nps<0?0:nps<50?1:nps<75?2:3;
+  if(zi>=0){var z=document.getElementById('npsZone');z.textContent=zones[zi];z.style.background=zoneColors[zi];z.style.color=zoneText[zi];}
+
+  var pP=n?Math.round(pro/n*100):0,pD=n?Math.round(det/n*100):0,pN=n?Math.round(neu/n*100):0;
+  document.getElementById('distBar').innerHTML='<div style="width:'+pD+'%;background:var(--red)"></div><div style="width:'+pN+'%;background:var(--amber)"></div><div style="width:'+pP+'%;background:var(--green)"></div>';
   document.getElementById('mTotal').textContent=n;
   document.getElementById('mPro').textContent=pP+'%';
   document.getElementById('mDet').textContent=pD+'%';
-
-  renderBar(dMes);
-  renderCommentsFallback(filterMes(),'commentsMes','aiLoadingMes');
-  renderCommentsWithAI(filterWeek(),'commentsWeek','aiLoadingWeek');
+  renderBar(d);
 }
 
 function renderBar(d){
-  const ctx=document.getElementById('barChart').getContext('2d');
+  var ctx=document.getElementById('barChart').getContext('2d');
   if(barChartInst) barChartInst.destroy();
   barChartInst=new Chart(ctx,{type:'bar',data:{labels:['Atendimento','Comida','Limpeza','Estrutura'],datasets:[{label:'Média',data:[avg(d,'atend'),avg(d,'comida'),avg(d,'limpeza'),avg(d,'estrutura')].map(v=>parseFloat(v.toFixed(1))),backgroundColor:['rgba(96,165,250,0.25)','rgba(62,207,142,0.25)','rgba(245,158,11,0.25)','rgba(248,113,113,0.25)'],borderColor:['#60a5fa','#3ecf8e','#f59e0b','#f87171'],borderWidth:1.5,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:5,ticks:{stepSize:1,color:'#7a7a85',font:{size:11}},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:'#7a7a85',font:{size:11}},grid:{display:false}}}}});
 }
 
-function renderCommentsFallback(d,elId,loadId){
-  const withComment=d.filter(r=>r.comentario&&r.comentario.trim().length>5);
-  const neg=withComment.filter(r=>r.nps<=6).sort((a,b)=>a.nps-b.nps);
-  if(neg.length){
-    document.getElementById(elId).innerHTML=neg.map(r=>makeCard(r)).join('');
-  }else{
-    document.getElementById(elId).innerHTML='<div class="empty">Sem comentários negativos neste período.</div>';
-  }
+function makeCard(r, weekTag){
+  var q=(r.comentario||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  var pilcls=r.nps<=6?'pill-det':r.nps<=8?'pill-neu':'pill-pro';
+  var wk=weekTag?'<span class="pill-week">'+weekTag+'</span>':'';
+  return '<div class="comment-card"><div class="comment-text">"'+q+'"</div><div class="comment-meta"><span class="pill '+pilcls+'">NPS '+r.nps+'</span>'+(r.nome?r.nome:'Anônimo')+' · '+new Date(r.data).toLocaleDateString('pt-BR')+wk+'</div></div>';
 }
 
-async function renderCommentsWithAI(d,elId,loadId){
-  const withComment=d.filter(r=>r.comentario&&r.comentario.trim().length>5);
+// ── SEMANA: IA analisa e salva no Historico ──────────────
+async function runWeekAnalysis(){
+  var dWeek=filterWeek();
+  var{mon,sun}=getWeekRange();
+  var semanaLabel=fmt(mon)+' a '+fmt(sun);
+  document.getElementById('weekRangeLabel').textContent=semanaLabel;
+
+  var withComment=dWeek.filter(r=>r.comentario&&r.comentario.trim().length>5);
   if(!withComment.length){
-    document.getElementById(elId).innerHTML='<div class="empty">Sem comentários neste período.</div>';
+    document.getElementById('commentsWeek').innerHTML='<div class="empty">Sem comentários neste período.</div>';
     return;
   }
-  document.getElementById(loadId).style.display='block';
-  document.getElementById(elId).innerHTML='';
+
+  document.getElementById('aiLoadingWeek').style.display='block';
+  document.getElementById('commentsWeek').innerHTML='';
 
   try{
-    const BATCH=20;
-    let allNegIdx=[];
-    for(let i=0;i<withComment.length;i+=BATCH){
-      const batch=withComment.slice(i,i+BATCH);
-      const list=batch.map((r,j)=>`[${i+j}] NPS ${r.nps}: "${r.comentario}"`).join('\n');
-      const prompt=`Buffet infantil. Retorne índices dos comentários com QUALQUER elemento negativo — sugestões, críticas, ressalvas, reclamações, ou qualquer indicação de melhoria. Inclua mesmo com nota alta. Exclua apenas elogios puros.\n\n${list}\n\nRetorne SOMENTE JSON: {"negativos": [índices]}`;
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})});
-      const data=await resp.json();
-      const text=data.content.map(b=>b.text||'').join('');
-      const clean=text.replace(/```json|```/g,'').trim();
-      const parsed=JSON.parse(clean);
+    var BATCH=20, allNegIdx=[];
+    for(var i=0;i<withComment.length;i+=BATCH){
+      var batch=withComment.slice(i,i+BATCH);
+      var list=batch.map((r,j)=>'['+  (i+j)+'] NPS '+r.nps+': "'+r.comentario+'"').join('
+');
+      var prompt='Buffet infantil. Retorne índices dos comentários com QUALQUER elemento negativo — sugestões, críticas, ressalvas, reclamações, ou qualquer indicação de que algo poderia melhorar. Inclua mesmo com nota alta. Exclua apenas elogios puros sem nenhuma ressalva.
+
+'+list+'
+
+Retorne SOMENTE JSON: {"negativos": [índices]}';
+      var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})});
+      var data=await resp.json();
+      var text=data.content.map(b=>b.text||'').join('');
+      var clean=text.replace(/```json|```/g,'').trim();
+      var parsed=JSON.parse(clean);
       allNegIdx=allNegIdx.concat(parsed.negativos||[]);
     }
-    const negIdx=new Set(allNegIdx);
-    const negComments=withComment.filter((_,i)=>negIdx.has(i));
+
+    var negIdx=new Set(allNegIdx);
+    var negComments=withComment.filter((_,i)=>negIdx.has(i));
+
     if(negComments.length){
-      document.getElementById(elId).innerHTML=negComments.map(r=>makeCard(r)).join('');
+      document.getElementById('commentsWeek').innerHTML=negComments.map(r=>makeCard(r,null)).join('');
+      // Salva no histórico
+      await saveToHistorico(negComments, semanaLabel);
+      weekAnalysisDone=true;
     }else{
-      document.getElementById(elId).innerHTML='<div class="empty">Nenhum comentário negativo encontrado.</div>';
+      document.getElementById('commentsWeek').innerHTML='<div class="empty">Nenhum comentário negativo encontrado.</div>';
+      weekAnalysisDone=true;
     }
   }catch(e){
-    const det=withComment.filter(r=>r.nps<=6);
-    document.getElementById(elId).innerHTML=det.length?det.map(r=>makeCard(r)).join(''):'<div class="empty">Sem comentários negativos.</div>';
+    var det=withComment.filter(r=>r.nps<=6);
+    document.getElementById('commentsWeek').innerHTML=det.length?det.map(r=>makeCard(r,null)).join(''):'<div class="empty">Sem comentários negativos.</div>';
   }
-  document.getElementById(loadId).style.display='none';
+  document.getElementById('aiLoadingWeek').style.display='none';
 }
 
-function makeCard(r){
-  const q=(r.comentario||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-  const pilcls=r.nps<=6?'pill-det':r.nps<=8?'pill-neu':'pill-pro';
-  return`<div class="comment-card"><div class="comment-text">"${q}"</div><div class="comment-meta"><span class="pill ${pilcls}">NPS ${r.nps}</span>${r.nome?r.nome:'Anônimo'} · ${r.data.toLocaleDateString('pt-BR')}</div></div>`;
+async function saveToHistorico(comentarios, semana){
+  try{
+    var payload={
+      action:'saveHistorico',
+      semana:semana,
+      comentarios:comentarios.map(r=>({
+        data:r.data.toLocaleDateString('pt-BR'),
+        nps:r.nps,
+        comentario:r.comentario,
+        nome:r.nome
+      }))
+    };
+    await fetch(APPS_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  }catch(e){}
+}
+
+// ── MÊS: lê histórico acumulado ──────────────────────────
+async function loadHistorico(){
+  document.getElementById('aiLoadingMes').style.display='block';
+  document.getElementById('commentsMes').innerHTML='';
+  try{
+    var resp=await fetch(APPS_URL+'?sheet=Historico');
+    var json=await resp.json();
+    if(!json.length){
+      document.getElementById('commentsMes').innerHTML='<div class="empty">Nenhum comentário negativo registrado ainda. Acesse a aba "Última semana" para gerar a análise.</div>';
+    }else{
+      // Filter by current month
+      var{start,end}=getMesRange();
+      var mesItems=json.filter(r=>{
+        var d=parseDate(r['Data']);
+        return d>=start&&d<=end;
+      });
+      if(!mesItems.length){
+        document.getElementById('commentsMes').innerHTML='<div class="empty">Sem comentários negativos registrados neste mês ainda.</div>';
+      }else{
+        // Group by week
+        var byWeek={};
+        mesItems.forEach(r=>{
+          var wk=r['Semana']||'Sem data';
+          if(!byWeek[wk]) byWeek[wk]=[];
+          byWeek[wk].push(r);
+        });
+        var html='';
+        Object.keys(byWeek).sort().reverse().forEach(wk=>{
+          html+='<div style="font-size:11px;font-weight:600;color:var(--blue);margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.05em">Semana '+wk+'</div>';
+          byWeek[wk].forEach(r=>{
+            var q=(r['Comentário']||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+            var nps=parseInt(r['NPS'])||0;
+            var pilcls=nps<=6?'pill-det':nps<=8?'pill-neu':'pill-pro';
+            html+='<div class="comment-card"><div class="comment-text">"'+q+'"</div><div class="comment-meta"><span class="pill '+pilcls+'">NPS '+nps+'</span>'+(r['Nome']?r['Nome']:'Anônimo')+' · '+r['Data']+'</div></div>';
+          });
+        });
+        document.getElementById('commentsMes').innerHTML=html;
+      }
+    }
+  }catch(e){
+    document.getElementById('commentsMes').innerHTML='<div class="empty">Erro ao carregar histórico.</div>';
+  }
+  document.getElementById('aiLoadingMes').style.display='none';
 }
 
 function updateTime(){
-  const now=new Date();
-  const{mon,sun}=getWeekRange();
-  const fmt=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+  var now=new Date();
+  var{mon,sun}=getWeekRange();
   document.getElementById('lastUpdate').textContent='Atualizado '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · semana '+fmt(mon)+' a '+fmt(sun);
 }
 
