@@ -226,16 +226,7 @@ async function renderCommentsWithAI(d){
 
   try{
     const list=withComment.map(r=>`Nota NPS ${r.nps}: "${r.comentario}"`).join('\n');
-    const prompt=`Você é analista de experiência de clientes de um buffet infantil. Analise os comentários abaixo e retorne APENAS os que contêm alguma crítica, insatisfação, sugestão de melhoria ou ponto negativo — independente da nota NPS dada.
-
-Retorne um JSON com o formato:
-{"negativos": [0,2,4]}
-
-Onde os números são os índices (começando em 0) dos comentários negativos na lista abaixo:
-
-${list}
-
-Retorne SOMENTE o JSON, sem explicações.`;
+    const prompt=`Você é analista de experiência de clientes de um buffet infantil. Analise os comentários abaixo e retorne os índices de TODOS que contêm QUALQUER elemento negativo — mesmo que a nota NPS seja alta. Inclua: sugestões de melhoria, críticas, reclamações, ressalvas, situações desconfortáveis, pedidos não atendidos, ou qualquer frase que indique que algo poderia ser melhor. Exemplos que DEVEM ser incluídos: "só faltou estacionamento", "poderia melhorar na distribuição", "achei a música alta", "precisa ter mais sanitários", "a forma que foi feito não foi adequada", "de resto excelente, mas...". Exclua APENAS comentários que sejam 100% elogios sem nenhuma ressalva.\n\nRetorne um JSON com o formato:\n{"negativos": [0,2,4]}\n\nOnde os números são os índices (começando em 0) na lista abaixo:\n\n${list}\n\nRetorne SOMENTE o JSON, sem explicações.`;
 
     const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:prompt}]})});
     const data=await resp.json();
