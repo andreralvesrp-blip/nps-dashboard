@@ -66,11 +66,6 @@ body{padding:0 0 env(safe-area-inset-bottom) 0}
     <button class="refresh-btn" onclick="loadData()">&#8635; Atualizar</button>
   </div>
 
-  <div class="tabs">
-    <button class="tab active" onclick="setTab('mes',this)">Este mês</button>
-    <button class="tab" onclick="setTab('semana',this)">Última semana</button>
-  </div>
-
   <div class="nps-hero">
     <div class="nps-number" id="npsNum" style="color:var(--green)">—</div>
     <div class="nps-label">Net Promoter Score</div>
@@ -94,26 +89,24 @@ body{padding:0 0 env(safe-area-inset-bottom) 0}
 
   <div class="divider"></div>
 
-  <div class="section-title">Comentários negativos <span id="aiTag" class="ai-tag" style="display:none">IA</span></div>
-  <div id="comments"></div>
-  <div id="aiLoading" style="display:none" class="loading-ai">Analisando comentários com IA...</div>
+  <div class="section-title">Comentários negativos — última semana <span class="ai-tag">IA</span></div>
+  <div id="commentsWeek"></div>
+  <div id="aiLoadingWeek" style="display:none" class="loading-ai">Analisando com IA...</div>
 
   <div class="divider"></div>
 
-  <div class="section-title">QR Code para convidados</div>
-  <div class="qr-panel">
-    <div class="qr-title">Imprima e fixe no local para os convidados avaliarem</div>
-    <canvas id="qrCanvas"></canvas>
-    <div class="qr-url">https://andreralvesrp-blip.github.io/nps-dashboard/nps-form.html</div>
-  </div>
-</div>
+  <div class="section-title">Comentários negativos — este mês</div>
+  <div id="commentsMes"></div>
+  <div id="aiLoadingMes" style="display:none" class="loading-ai">Analisando com IA...</div>
+
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const APPS_URL='https://script.google.com/macros/s/AKfycbxoohk6VTw9AJXHAhK6vqbyQLqjafqqPN5pxVMXP2eA41z5WbUXTwy5IFG77S8uYGwv/exec';
 const FORM_URL='https://andreralvesrp-blip.github.io/nps-dashboard/nps-form.html';
-let allData=[],currentTab='mes',barChartInst=null;
+const APPS_URL='https://script.google.com/macros/s/AKfycbxoohk6VTw9AJXHAhK6vqbyQLqjafqqPN5pxVMXP2eA41z5WbUXTwy5IFG77S8uYGwv/exec';
+let allData=[], barChartInst=null;
 
 async function loadData(){
   document.getElementById('liveIndicator').innerHTML='<div class="dot" style="background:var(--amber)"></div><span style="color:var(--amber)">buscando</span>';
@@ -131,11 +124,8 @@ async function loadData(){
 
 function parseDate(str){
   if(!str) return new Date();
-  // pt-BR format: "23/04/2025 22:34:21"
-  const ptBR=/^(\d{2})\/(\d{2})\/(\d{4})(.*)$/;
-  const m=String(str).match(ptBR);
+  const m=String(str).match(/^(\d{2})\/(\d{2})\/(\d{4})(.*)/);
   if(m) return new Date(`${m[3]}-${m[2]}-${m[1]}${m[4]||''}`);
-  // ISO or other formats
   const d=new Date(str);
   return isNaN(d)?new Date():d;
 }
@@ -155,41 +145,35 @@ function parseRows(rows){
   }).filter(r=>r.nps>=0&&r.nps<=10);
 }
 
-function filterData(){
+function getWeekRange(){
   const now=new Date();
-  if(currentTab==='mes'){
-    // Mês vigente: do dia 1 ao último dia do mês atual
-    const start=new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);
-    const end=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
-    return allData.filter(r=>r.data>=start&&r.data<=end);
-  }
-  // Última semana: segunda a domingo da semana anterior
-  const dow=now.getDay(); // 0=Dom,1=Seg,...,6=Sab
-  const daysSinceMonday=dow===0?6:dow-1; // dias desde última segunda
-  const lastMonday=new Date(now);
-  lastMonday.setDate(now.getDate()-daysSinceMonday-7);
-  lastMonday.setHours(0,0,0,0);
-  const lastSunday=new Date(lastMonday);
-  lastSunday.setDate(lastMonday.getDate()+6);
-  lastSunday.setHours(23,59,59,999);
-  return allData.filter(r=>r.data>=lastMonday&&r.data<=lastSunday);
+  const dow=now.getDay();
+  const dim=dow===0?6:dow-1;
+  const mon=new Date(now); mon.setDate(now.getDate()-dim-7); mon.setHours(0,0,0,0);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
+  return{mon,sun};
 }
 
-function setTab(tab,el){
-  currentTab=tab;
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  renderAll();
+function getMesRange(){
+  const now=new Date();
+  const start=new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);
+  const end=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
+  return{start,end};
 }
+
+function filterWeek(){ const{mon,sun}=getWeekRange(); return allData.filter(r=>r.data>=mon&&r.data<=sun); }
+function filterMes(){ const{start,end}=getMesRange(); return allData.filter(r=>r.data>=start&&r.data<=end); }
 
 function avg(d,k){ return d.length?d.reduce((s,r)=>s+r[k],0)/d.length:0; }
 
 function renderAll(){
-  const d=filterData(),n=d.length;
-  const pro=d.filter(r=>r.nps>=9).length;
-  const det=d.filter(r=>r.nps<=6).length;
+  const dMes=filterMes();
+  const n=dMes.length;
+  const pro=dMes.filter(r=>r.nps>=9).length;
+  const det=dMes.filter(r=>r.nps<=6).length;
   const neu=n-pro-det;
   const nps=n?Math.round(((pro-det)/n)*100):null;
+
   const color=nps===null?'var(--muted)':nps>=75?'var(--green)':nps>=50?'var(--blue)':nps>=0?'var(--amber)':'var(--red)';
   document.getElementById('npsNum').textContent=nps!==null?nps:'—';
   document.getElementById('npsNum').style.color=color;
@@ -198,14 +182,16 @@ function renderAll(){
   const zoneText=['var(--red)','var(--amber)','var(--blue)','var(--green)'];
   const zi=nps===null?-1:nps<0?0:nps<50?1:nps<75?2:3;
   if(zi>=0){const z=document.getElementById('npsZone');z.textContent=zones[zi];z.style.background=zoneColors[zi];z.style.color=zoneText[zi];}
+
   const pP=n?Math.round(pro/n*100):0,pD=n?Math.round(det/n*100):0,pN=n?Math.round(neu/n*100):0;
   document.getElementById('distBar').innerHTML=`<div style="width:${pD}%;background:var(--red)"></div><div style="width:${pN}%;background:var(--amber)"></div><div style="width:${pP}%;background:var(--green)"></div>`;
   document.getElementById('mTotal').textContent=n;
   document.getElementById('mPro').textContent=pP+'%';
   document.getElementById('mDet').textContent=pD+'%';
-  renderBar(d);
-  renderCommentsWithAI(d);
-  renderQR();
+
+  renderBar(dMes);
+  renderCommentsFallback(filterMes(),'commentsMes','aiLoadingMes');
+  renderCommentsWithAI(filterWeek(),'commentsWeek','aiLoadingWeek');
 }
 
 function renderBar(d){
@@ -214,39 +200,51 @@ function renderBar(d){
   barChartInst=new Chart(ctx,{type:'bar',data:{labels:['Atendimento','Comida','Limpeza','Estrutura'],datasets:[{label:'Média',data:[avg(d,'atend'),avg(d,'comida'),avg(d,'limpeza'),avg(d,'estrutura')].map(v=>parseFloat(v.toFixed(1))),backgroundColor:['rgba(96,165,250,0.25)','rgba(62,207,142,0.25)','rgba(245,158,11,0.25)','rgba(248,113,113,0.25)'],borderColor:['#60a5fa','#3ecf8e','#f59e0b','#f87171'],borderWidth:1.5,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:5,ticks:{stepSize:1,color:'#7a7a85',font:{size:11}},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:'#7a7a85',font:{size:11}},grid:{display:false}}}}});
 }
 
-async function renderCommentsWithAI(d){
+function renderCommentsFallback(d,elId,loadId){
+  const withComment=d.filter(r=>r.comentario&&r.comentario.trim().length>5);
+  const neg=withComment.filter(r=>r.nps<=6).sort((a,b)=>a.nps-b.nps);
+  if(neg.length){
+    document.getElementById(elId).innerHTML=neg.map(r=>makeCard(r)).join('');
+  }else{
+    document.getElementById(elId).innerHTML='<div class="empty">Sem comentários negativos neste período.</div>';
+  }
+}
+
+async function renderCommentsWithAI(d,elId,loadId){
   const withComment=d.filter(r=>r.comentario&&r.comentario.trim().length>5);
   if(!withComment.length){
-    document.getElementById('comments').innerHTML='<div class="empty">Sem comentários neste período.</div>';
+    document.getElementById(elId).innerHTML='<div class="empty">Sem comentários neste período.</div>';
     return;
   }
-  document.getElementById('aiLoading').style.display='block';
-  document.getElementById('comments').innerHTML='';
-  document.getElementById('aiTag').style.display='none';
+  document.getElementById(loadId).style.display='block';
+  document.getElementById(elId).innerHTML='';
 
   try{
-    const list=withComment.map(r=>`Nota NPS ${r.nps}: "${r.comentario}"`).join('\n');
-    const prompt=`Você é analista de experiência de clientes de um buffet infantil. Analise os comentários abaixo e retorne os índices de TODOS que contêm QUALQUER elemento negativo — mesmo que a nota NPS seja alta. Inclua: sugestões de melhoria, críticas, reclamações, ressalvas, situações desconfortáveis, pedidos não atendidos, ou qualquer frase que indique que algo poderia ser melhor. Exemplos que DEVEM ser incluídos: "só faltou estacionamento", "poderia melhorar na distribuição", "achei a música alta", "precisa ter mais sanitários", "a forma que foi feito não foi adequada", "de resto excelente, mas...". Exclua APENAS comentários que sejam 100% elogios sem nenhuma ressalva.\n\nRetorne um JSON com o formato:\n{"negativos": [0,2,4]}\n\nOnde os números são os índices (começando em 0) na lista abaixo:\n\n${list}\n\nRetorne SOMENTE o JSON, sem explicações.`;
-
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:prompt}]})});
-    const data=await resp.json();
-    const text=data.content.map(b=>b.text||'').join('');
-    const clean=text.replace(/```json|```/g,'').trim();
-    const parsed=JSON.parse(clean);
-    const negIdx=new Set(parsed.negativos||[]);
+    const BATCH=20;
+    let allNegIdx=[];
+    for(let i=0;i<withComment.length;i+=BATCH){
+      const batch=withComment.slice(i,i+BATCH);
+      const list=batch.map((r,j)=>`[${i+j}] NPS ${r.nps}: "${r.comentario}"`).join('\n');
+      const prompt=`Buffet infantil. Retorne índices dos comentários com QUALQUER elemento negativo — sugestões, críticas, ressalvas, reclamações, ou qualquer indicação de melhoria. Inclua mesmo com nota alta. Exclua apenas elogios puros.\n\n${list}\n\nRetorne SOMENTE JSON: {"negativos": [índices]}`;
+      const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})});
+      const data=await resp.json();
+      const text=data.content.map(b=>b.text||'').join('');
+      const clean=text.replace(/```json|```/g,'').trim();
+      const parsed=JSON.parse(clean);
+      allNegIdx=allNegIdx.concat(parsed.negativos||[]);
+    }
+    const negIdx=new Set(allNegIdx);
     const negComments=withComment.filter((_,i)=>negIdx.has(i));
-
-    document.getElementById('aiTag').style.display='inline-block';
     if(negComments.length){
-      document.getElementById('comments').innerHTML=negComments.map(r=>makeCard(r)).join('');
+      document.getElementById(elId).innerHTML=negComments.map(r=>makeCard(r)).join('');
     }else{
-      document.getElementById('comments').innerHTML='<div class="empty">Nenhum comentário negativo encontrado neste período.</div>';
+      document.getElementById(elId).innerHTML='<div class="empty">Nenhum comentário negativo encontrado.</div>';
     }
   }catch(e){
     const det=withComment.filter(r=>r.nps<=6);
-    document.getElementById('comments').innerHTML=det.length?det.map(r=>makeCard(r)).join(''):'<div class="empty">Sem comentários negativos neste período.</div>';
+    document.getElementById(elId).innerHTML=det.length?det.map(r=>makeCard(r)).join(''):'<div class="empty">Sem comentários negativos.</div>';
   }
-  document.getElementById('aiLoading').style.display='none';
+  document.getElementById(loadId).style.display='none';
 }
 
 function makeCard(r){
@@ -255,26 +253,11 @@ function makeCard(r){
   return`<div class="comment-card"><div class="comment-text">"${q}"</div><div class="comment-meta"><span class="pill ${pilcls}">NPS ${r.nps}</span>${r.nome?r.nome:'Anônimo'} · ${r.data.toLocaleDateString('pt-BR')}</div></div>`;
 }
 
-function renderQR(){
-  const canvas=document.getElementById('qrCanvas');
-  const size=Math.min(180,window.innerWidth-80);
-  canvas.width=size;canvas.height=size;
-  try{QRCode.toCanvas(canvas,FORM_URL,{width:size,margin:2,color:{dark:'#f0f0f2',light:'#18181c'}});}catch(e){}
-}
-
 function updateTime(){
   const now=new Date();
-  const d=filterData();
-  let periodo='';
-  if(currentTab==='semana'){
-    const dow=now.getDay();
-    const dim=dow===0?6:dow-1;
-    const lm=new Date(now);lm.setDate(now.getDate()-dim-7);
-    const ls=new Date(lm);ls.setDate(lm.getDate()+6);
-    const fmt=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-    periodo=' · '+fmt(lm)+' a '+fmt(ls);
-  }
-  document.getElementById('lastUpdate').textContent='Atualizado '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+periodo;
+  const{mon,sun}=getWeekRange();
+  const fmt=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+  document.getElementById('lastUpdate').textContent='Atualizado '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · semana '+fmt(mon)+' a '+fmt(sun);
 }
 
 loadData();
