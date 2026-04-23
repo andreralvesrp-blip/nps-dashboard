@@ -130,7 +130,7 @@
     <div class="input-group">
       <label class="input-label">Link público do OneDrive (Excel)</label>
       <input type="url" id="oneDriveUrl" placeholder="https://1drv.ms/x/..." />
-      <div class="hint">No OneDrive: clique no arquivo → Compartilhar → Qualquer pessoa com o link → Copiar link</div>
+      <div class="hint">No Google Sheets: Arquivo → Publicar na web → CSV → copiar link</div>
     </div>
 
     <div class="input-group">
@@ -302,27 +302,15 @@ function startDash(demo=false){
   if(!demo) setInterval(loadData,60000);
 }
 
-/* ── ONEDRIVE FETCH ─────────────────────────── */
+/* ── APPS SCRIPT FETCH ──────────────────────── */
+const APPS_URL='https://script.google.com/macros/s/AKfycbwFANhzF3uhpoGhb71Xt9rzHD40FMpi2ohJvE64J10UNzI3rUJhoV9L1rdKvHT_H7pJ/exec';
+
 async function loadData(){
-  if(!config.url){return;}
   document.getElementById('liveIndicator').innerHTML='<div class="dot" style="background:var(--amber)"></div><span style="color:var(--amber)">buscando</span>';
   try{
-    // Convert OneDrive share link to download URL
-    let dlUrl=config.url;
-    if(dlUrl.includes('1drv.ms')||dlUrl.includes('onedrive.live')||dlUrl.includes('sharepoint.com')){
-      // Try to get direct download via embed trick
-      dlUrl=dlUrl.replace('redir?','download?').replace('/e/','/download/');
-      if(dlUrl.includes('1drv.ms')){
-        const b64=btoa(dlUrl).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-        dlUrl=`https://api.onedrive.com/v1.0/shares/u!${b64}/root/content`;
-      }
-    }
-    const resp=await fetch(dlUrl);
-    const buf=await resp.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array',cellDates:true});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{raw:false,defval:''});
-    allData=parseRows(rows);
+    const resp=await fetch(APPS_URL);
+    const json=await resp.json();
+    allData=parseRows(json);
     document.getElementById('liveIndicator').innerHTML='<div class="dot"></div><span style="color:var(--green)">ao vivo</span>';
   }catch(e){
     document.getElementById('liveIndicator').innerHTML='<div class="dot" style="background:var(--red)"></div><span style="color:var(--red)">erro</span>';
@@ -340,15 +328,15 @@ function updateTime(){
 /* ── PARSE ───────────────────────────────────── */
 function parseRows(rows){
   return rows.map(r=>{
-    let data=new Date(r['Hora de conclusão']||r['Hora de início']||'');
+    let data=new Date(r['Data']||'');
     if(isNaN(data)) data=new Date();
-    const nps=parseInt(r['Qual é a probabilidade de você nos recomendar a um amigo ou familiar?'])||0;
+    const nps=parseInt(r['NPS'])||0;
     return{data,nps,
-      atend:parseFloat(r['Quantas estrelas você dá ao atendimento da equipe?'])||0,
-      comida:parseFloat(r['Quanto você gostou da nossa comida ?'])||0,
-      limpeza:parseFloat(r['Quão feliz você ficou com Limpeza e Organização do salão?'])||0,
-      estrutura:parseFloat(r['Em relação a nossa estrutura o quanto ela te atendeu?'])||0,
-      comentario:r['Deixe seu comentário para nós']||''
+      atend:parseFloat(r['Atendimento'])||0,
+      comida:parseFloat(r['Comida'])||0,
+      limpeza:parseFloat(r['Limpeza'])||0,
+      estrutura:parseFloat(r['Estrutura'])||0,
+      comentario:r['Comentário']||''
     };
   }).filter(r=>r.nps>=0&&r.nps<=10);
 }
