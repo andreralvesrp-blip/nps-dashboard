@@ -293,7 +293,10 @@ function loadHistorico(){
         Object.keys(byWeek).sort().reverse().forEach(function(wk){
           html+='<div class="week-group-title">Semana '+wk+'</div>';
           byWeek[wk].forEach(function(r){
-            html+=makeCard(parseInt(r['NPS'])||0,r['Comentário'],r['Nome'],r['Data']);
+            var dStr=r['Data']?String(r['Data']):'';
+            var dDisp=dStr;
+            if(dStr.indexOf('T')>-1){var dp=new Date(dStr);if(!isNaN(dp))dDisp=dp.toLocaleDateString('pt-BR');}
+            html+=makeCard(parseInt(r['NPS'])||0,r['Comentário'],r['Nome'],dDisp);
           });
         });
         document.getElementById('commentsMes').innerHTML=html;
