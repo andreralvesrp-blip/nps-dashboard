@@ -228,37 +228,32 @@ function runWeekAnalysis(){
 }
 
 function analyzeInBatches(items,offset,negIdx,semLabel){
-  var BATCH=20;
-  if(offset>=items.length){
-    var negSet=new Set(negIdx);
+  // Send all comments to Apps Script which calls Claude
+  var comentarios=items.map(function(r){
+    return{nps:r.nps,comentario:r.comentario};
+  });
+  fetch(APPS_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'analisarComentarios',comentarios:comentarios})
+  }).then(function(r){return r.json();})
+  .then(function(parsed){
+    var negSet=new Set(parsed.negativos||[]);
     var negItems=items.filter(function(_,i){return negSet.has(i);});
     document.getElementById('aiLoadingWeek').style.display='none';
     if(negItems.length){
       document.getElementById('commentsWeek').innerHTML=negItems.map(function(r){return makeCard(r.nps,r.comentario,r.nome,r.data.toLocaleDateString('pt-BR'));}).join('');
       saveToHistorico(negItems,semLabel);
-      weekDone=true;
     }else{
       document.getElementById('commentsWeek').innerHTML='<div class="empty">Nenhum comentário negativo encontrado.</div>';
-      weekDone=true;
     }
-    return;
-  }
-  var batch=items.slice(offset,offset+BATCH);
-  var lines=batch.map(function(r,j){return '['+(offset+j)+'] NPS '+r.nps+': '+r.comentario;}).join(' | ');
-  var prompt='Buffet infantil. Retorne indices dos comentarios com QUALQUER critica, sugestao ou ressalva, independente da nota. Exclua apenas elogios puros. Lista: '+lines+' Retorne SOMENTE JSON: {"negativos":[indices]}';
-  fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})
-  }).then(function(r){return r.json();})
-  .then(function(data){
-    var text=data.content.map(function(b){return b.text||'';}).join('');
-    var clean=text.replace(/```json/g,'').replace(/```/g,'').trim();
-    var parsed=JSON.parse(clean);
-    var newIdx=negIdx.concat(parsed.negativos||[]);
-    analyzeInBatches(items,offset+BATCH,newIdx,semLabel);
-  }).catch(function(){
-    analyzeInBatches(items,offset+BATCH,negIdx,semLabel);
+    weekDone=true;
+  }).catch(function(e){
+    console.error('Erro IA:',e);
+    var det=items.filter(function(r){return r.nps<=6;});
+    document.getElementById('commentsWeek').innerHTML=det.length?det.map(function(r){return makeCard(r.nps,r.comentario,r.nome,r.data.toLocaleDateString('pt-BR'));}).join(''):'<div class="empty">Erro na análise. Sem comentários negativos por nota.</div>';
+    document.getElementById('aiLoadingWeek').style.display='none';
+    weekDone=true;
   });
 }
 
