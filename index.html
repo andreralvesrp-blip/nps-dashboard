@@ -232,11 +232,9 @@ function analyzeInBatches(items,offset,negIdx,semLabel){
   var comentarios=items.map(function(r){
     return{nps:r.nps,comentario:r.comentario};
   });
-  fetch(APPS_URL,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'analisarComentarios',comentarios:comentarios})
-  }).then(function(r){return r.json();})
+  var params='?action=analisarComentarios&data='+encodeURIComponent(JSON.stringify(comentarios));
+  fetch(APPS_URL+params)
+  .then(function(r){return r.json();})
   .then(function(parsed){
     var negSet=new Set(parsed.negativos||[]);
     var negItems=items.filter(function(_,i){return negSet.has(i);});
