@@ -228,35 +228,38 @@ function runWeekAnalysis(){
 }
 
 function analyzeInBatches(items,offset,negIdx,semLabel){
-  // Send all comments to Apps Script which calls Claude
-  var comentarios=items.map(function(r){
-    return{nps:r.nps,comentario:r.comentario};
-  });
-  var params='?action=analisarComentarios&callback=handleAIResponse&data='+encodeURIComponent(JSON.stringify(comentarios));
   window._aiItems=items;
   window._aiSemLabel=semLabel;
-    var negSet=new Set(parsed.negativos||[]);
-    var negItems=items.filter(function(_,i){return negSet.has(i);});
-    document.getElementById('aiLoadingWeek').style.display='none';
-    if(negItems.length){
-      document.getElementById('commentsWeek').innerHTML=negItems.map(function(r){return makeCard(r.nps,r.comentario,r.nome,r.data.toLocaleDateString('pt-BR'));}).join('');
-      saveToHistorico(negItems,semLabel);
-    }else{
-      document.getElementById('commentsWeek').innerHTML='<div class="empty">Nenhum comentário negativo encontrado.</div>';
-    }
-    weekDone=true;
-  };
-  // Use script tag to avoid CORS
+  var comentarios=items.map(function(r){return{nps:r.nps,comentario:r.comentario};});
+  // Remove old script tag if exists
+  var old=document.getElementById('jsonpScript');
+  if(old) old.parentNode.removeChild(old);
+  // JSONP via script tag - no CORS
   var script=document.createElement('script');
+  script.id='jsonpScript';
   script.onerror=function(){
+    document.getElementById('aiLoadingWeek').style.display='none';
     var det=items.filter(function(r){return r.nps<=6;});
     document.getElementById('commentsWeek').innerHTML=det.length?det.map(function(r){return makeCard(r.nps,r.comentario,r.nome,r.data.toLocaleDateString('pt-BR'));}).join(''):'<div class="empty">Erro na análise.</div>';
-    document.getElementById('aiLoadingWeek').style.display='none';
     weekDone=true;
-    document.body.removeChild(script);
   };
   script.src=APPS_URL+'?action=analisarComentarios&callback=handleAIResponse&data='+encodeURIComponent(JSON.stringify(comentarios));
   document.body.appendChild(script);
+}
+
+function handleAIResponse(parsed){
+  var items=window._aiItems||[];
+  var semLabel=window._aiSemLabel||'';
+  var negSet=new Set(parsed.negativos||[]);
+  var negItems=items.filter(function(_,i){return negSet.has(i);});
+  document.getElementById('aiLoadingWeek').style.display='none';
+  if(negItems.length){
+    document.getElementById('commentsWeek').innerHTML=negItems.map(function(r){return makeCard(r.nps,r.comentario,r.nome,r.data.toLocaleDateString('pt-BR'));}).join('');
+    saveToHistorico(negItems,semLabel);
+  }else{
+    document.getElementById('commentsWeek').innerHTML='<div class="empty">Nenhum comentário negativo encontrado.</div>';
+  }
+  weekDone=true;
 }
 
 function handleAIResponse(parsed){
