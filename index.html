@@ -262,20 +262,7 @@ function handleAIResponse(parsed){
   weekDone=true;
 }
 
-function handleAIResponse(parsed){
-  var items=window._aiItems||[];
-  var semLabel=window._aiSemLabel||'';
-  var negSet=new Set(parsed.negativos||[]);
-  var negItems=items.filter(function(_,i){return negSet.has(i);});
-  document.getElementById('aiLoadingWeek').style.display='none';
-  if(negItems.length){
-    document.getElementById('commentsWeek').innerHTML=negItems.map(function(r){return makeCard(r.nps,r.comentario,r.nome,r.data.toLocaleDateString('pt-BR'));}).join('');
-    saveToHistorico(negItems,semLabel);
-  }else{
-    document.getElementById('commentsWeek').innerHTML='<div class="empty">Nenhum comentário negativo encontrado.</div>';
-  }
-  weekDone=true;
-}
+
 
 function saveToHistorico(items,semana){
   var payload={
